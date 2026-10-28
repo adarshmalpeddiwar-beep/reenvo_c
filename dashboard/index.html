@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reenvo Control Panel</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --surface-2: #f6f7f9;
+    --inset: #eceff3;
+    --border: #d9dee5;
+    --text: #12161b;
+    --muted: #5b6573;
+    --faint: #8a94a3;
+    --accent: #1f6feb;
+    --accent-soft: #e4eeff;
+    --ok: #18794e;
+    --ok-soft: #e1f3e9;
+    --warn: #9a6100;
+    --warn-soft: #fff1d1;
+    --danger: #c62828;
+    --danger-soft: #fde7e7;
+    --danger-strong: #d32f2f;
+    --lamp-off: #c3cad3;
+    --on-strong: #ffffff;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 1px rgba(16, 24, 40, .03);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0f13;
+      --surface: #151a20;
+      --surface-2: #1b2128;
+      --inset: #10141a;
+      --border: #28303a;
+      --text: #e7eaef;
+      --muted: #9aa4b2;
+      --faint: #6b7584;
+      --accent: #5b9bff;
+      --accent-soft: #15284a;
+      --ok: #4cc38a;
+      --ok-soft: #112d20;
+      --warn: #f0b429;
+      --warn-soft: #362a0b;
+      --danger: #ff6b6b;
+      --danger-soft: #3a1616;
+      --danger-strong: #e5484d;
+      --lamp-off: #39424e;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c0f13;
+    --surface: #151a20;
+    --surface-2: #1b2128;
+    --inset: #10141a;
+    --border: #28303a;
+    --text: #e7eaef;
+    --muted: #9aa4b2;
+    --faint: #6b7584;
+    --accent: #5b9bff;
+    --accent-soft: #15284a;
+    --ok: #4cc38a;
+    --ok-soft: #112d20;
+    --warn: #f0b429;
+    --warn-soft: #362a0b;
+    --danger: #ff6b6b;
+    --danger-soft: #3a1616;
+    --danger-strong: #e5484d;
+    --lamp-off: #39424e;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 16px 40px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Top bar ---------- */
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .mark {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--text); color: var(--surface);
+    display: grid; place-items: center; font-weight: 800; font-size: 16px; letter-spacing: -.02em;
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; line-height: 1.2; }
+  header .sub { color: var(--muted); font-size: 12.5px; }
+  .grow { flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 11px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lamp-off); }
+  .chip.on { color: var(--ok); }
+  .chip.on .dot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); padding: 9px 14px; min-height: 40px;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  button:hover:not(:disabled) { background: var(--surface-2); }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  button:disabled { opacity: .42; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-strong); }
+  button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, black); }
+
+  .estop {
+    width: 100%; min-height: 54px; margin-bottom: 14px; border-radius: 12px;
+    background: var(--danger-strong); border-color: var(--danger-strong); color: var(--on-strong);
+    font-size: 16px; letter-spacing: .08em;
+  }
+  .estop:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-strong) 86%, black) !important; }
+  .estop kbd { margin-left: 10px; color: var(--on-strong); border-color: rgba(255,255,255,.5); background: transparent; }
+
+  .banner {
+    padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-weight: 500;
+    background: var(--warn-soft); color: var(--warn);
+  }
+  .notice { margin: -4px 0 14px; padding: 10px 14px; border-radius: 10px; font-weight: 500; display: none; }
+  .notice.show { display: block; }
+  .notice.warn { background: var(--warn-soft); color: var(--warn); }
+  .notice.danger { background: var(--danger-soft); color: var(--danger); }
+  .notice.info { background: var(--accent-soft); color: var(--accent); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px;
+  }
+  .label {
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700;
+  }
+  .row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+
+  /* ---------- Sensors ---------- */
+  .sensors { margin-bottom: 14px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile {
+    border: 1px solid var(--border); border-radius: 11px; padding: 11px 12px; background: var(--surface-2);
+    display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center;
+    transition: background .15s, border-color .15s;
+  }
+  .lamp { width: 14px; height: 14px; border-radius: 50%; background: var(--lamp-off); grid-row: span 2; }
+  .tile .name { font-weight: 650; font-size: 14px; }
+  .tile .pin { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }
+  .tile .value {
+    grid-column: 1 / -1; font-family: var(--mono); font-size: 26px; font-weight: 700; margin: 6px 0 0;
+    color: var(--faint); letter-spacing: .02em;
+  }
+  .tile .meta { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+  .tile .meta select {
+    font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1px 3px;
+  }
+  /* FALSE = red, TRUE = green, for every input. */
+  .tile.false { background: var(--danger-soft); border-color: var(--danger); }
+  .tile.false .value { color: var(--danger); }
+  .tile.false .lamp { background: var(--danger); }
+  .tile.true { background: var(--ok-soft); border-color: var(--ok); }
+  .tile.true .value { color: var(--ok); }
+  .tile.true .lamp { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .tile.flash { animation: flash .5s ease-out; }
+  @keyframes flash { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent); } to { box-shadow: 0 0 0 0 transparent; } }
+
+  /* ---------- Axes ---------- */
+  .axes { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  .axis-title { font-size: 17px; font-weight: 750; margin: 0; letter-spacing: -.01em; }
+  .axis-sub { color: var(--faint); font-size: 11.5px; font-family: var(--mono); }
+  .badge {
+    font-size: 11.5px; font-weight: 750; letter-spacing: .04em; padding: 4px 9px; border-radius: 999px;
+    background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); white-space: nowrap;
+  }
+  .badge.run { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+
+  .readout {
+    background: var(--inset); border: 1px solid var(--border); border-radius: 11px;
+    padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+  }
+  .readout .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 38px; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+  .readout .big small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 6px; letter-spacing: 0; }
+  .readout .side { text-align: right; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .readout .side b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+  .readout .dirglyph { font-size: 22px; color: var(--faint); margin-right: 8px; }
+  .readout.live .big { color: var(--ok); }
+  .readout.live .dirglyph { color: var(--ok); }
+
+  .field { margin-bottom: 14px; }
+  .field-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 8px; }
+  .speed-row { display: flex; align-items: center; gap: 10px; }
+  .speed-row input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
+  .numbox { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); overflow: hidden; }
+  .numbox input {
+    width: 84px; border: 0; background: transparent; color: var(--text); font: inherit; font-family: var(--mono);
+    font-weight: 600; padding: 8px 4px 8px 10px; text-align: right; min-height: 38px;
+  }
+  .numbox span { color: var(--muted); font-size: 12px; padding: 0 10px 0 4px; }
+  .hint { color: var(--muted); font-size: 12px; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; min-height: 44px; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--text); color: var(--surface); }
+
+  .runbtn { width: 100%; min-height: 56px; font-size: 16px; margin-bottom: 14px; }
+  .runbtn.running { background: var(--danger-strong); border-color: var(--danger-strong); color: var(--on-strong); }
+  .runbtn.running:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-strong) 86%, black); }
+
+  .jog { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: stretch; }
+  .jog button.active { background: var(--accent); border-color: var(--accent); color: var(--on-strong); }
+  .timed { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  .timed .numbox input { width: 70px; }
+
+  details.settings { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; }
+  details.settings summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; list-style: none; }
+  details.settings summary::-webkit-details-marker { display: none; }
+  details.settings summary::before { content: "▸ "; }
+  details.settings[open] summary::before { content: "▾ "; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .settings-grid label { display: grid; gap: 5px; font-size: 12.5px; color: var(--muted); }
+  .settings-grid .numbox input { width: 100%; }
+  .settings-grid select {
+    font: inherit; font-family: var(--mono); color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 9px; padding: 8px; min-height: 38px;
+  }
+  .settings .hint { margin-top: 8px; }
+
+  /* ---------- Bottom ---------- */
+  .bottom { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 14px; }
+  @media (max-width: 860px) { .bottom { grid-template-columns: 1fr; } }
+  .relay-state { font-family: var(--mono); font-size: 38px; font-weight: 700; color: var(--faint); margin: 2px 0 14px; line-height: 1; }
+  .relay-state.on { color: var(--warn); }
+  .relay-state.off { color: var(--text); }
+  .relay .seg button.sel-on { background: var(--warn); color: var(--on-strong); }
+  .relay .seg button.sel-off { background: var(--text); color: var(--surface); }
+
+  .log {
+    height: 190px; overflow-y: auto; font-family: var(--mono); font-size: 12px;
+    background: var(--inset); border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
+  }
+  .log .tx { color: var(--accent); }
+  .log .warn { color: var(--warn); }
+  .log .err { color: var(--danger); }
+  .log .sys { color: var(--faint); }
+  .log .t { color: var(--faint); margin-right: 8px; }
+  .log .n { color: var(--faint); }
+  .cmd { display: flex; gap: 8px; margin-top: 8px; }
+  .cmd input {
+    flex: 1; min-width: 0; font: inherit; font-family: var(--mono); padding: 8px 10px;
+    background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 9px;
+  }
+  .smallbtn { min-height: 30px; padding: 4px 10px; font-size: 12.5px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 12px; }
+  kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; background: var(--surface); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">R</div>
+      <div>
+        <h1>Reenvo Control Panel</h1>
+        <div class="sub">Glyph C6 · wired USB serial · 115200 baud</div>
+      </div>
+    </div>
+    <div class="grow"></div>
+    <span class="chip" id="chip"><span class="dot"></span><span id="chipText">Disconnected</span></span>
+    <button class="primary" id="connectBtn">Connect board</button>
+  </header>
+
+  <div class="banner" id="unsupported" hidden>
+    This browser can't open USB serial ports. Open this page in desktop Chrome or Edge.
+  </div>
+  <div class="notice" id="notice" role="status" aria-live="polite"></div>
+
+  <button class="estop" id="estop" disabled>STOP ALL MOTORS<kbd>Esc</kbd></button>
+
+  <!-- Sensors -->
+  <section class="card sensors">
+    <div class="row-head"><span class="label">Sensor feedback</span><span class="hint" id="lastUpdate">No data yet</span></div>
+    <div class="tiles">
+      <div class="tile ir" id="tile-A0">
+        <span class="lamp"></span><span class="name">IR sensor 1</span><span class="pin">A0 · GPIO0</span>
+        <div class="value">—</div>
+        <div class="meta"><span class="raw">raw —</span>
+          <label>true when <select data-pin="A0" aria-label="IR sensor 1 triggered level"><option value="low">LOW</option><option value="high">HIGH</option></select></label>
+        </div>
+      </div>
+      <div class="tile ir" id="tile-A1">
+        <span class="lamp"></span><span class="name">IR sensor 2</span><span class="pin">A1 · GPIO1</span>
+        <div class="value">—</div>
+        <div class="meta"><span class="raw">raw —</span>
+          <label>true when <select data-pin="A1" aria-label="IR sensor 2 triggered level"><option value="low">LOW</option><option value="high">HIGH</option></select></label>
+        </div>
+      </div>
+      <div class="tile limit" id="tile-A2">
+        <span class="lamp"></span><span class="name">Limit switch 1</span><span class="pin">A2 · GPIO2</span>
+        <div class="value">—</div>
+        <div class="meta"><span class="raw">raw —</span>
+          <label>true when <select data-pin="A2" aria-label="Limit switch 1 triggered level"><option value="low">LOW</option><option value="high">HIGH</option></select></label>
+        </div>
+      </div>
+      <div class="tile limit" id="tile-A3">
+        <span class="lamp"></span><span class="name">Limit switch 2</span><span class="pin">A3 · GPIO3</span>
+        <div class="value">—</div>
+        <div class="meta"><span class="raw">raw —</span>
+          <label>true when <select data-pin="A3" aria-label="Limit switch 2 triggered level"><option value="low">LOW</option><option value="high">HIGH</option></select></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Axes (built from the template below) -->
+  <div class="axes" id="axes"></div>
+
+  <template id="axisTpl">
+    <section class="card axis">
+      <div class="row-head">
+        <div><p class="axis-title" data-title></p><div class="axis-sub" data-pins></div></div>
+        <span class="badge" data-badge>—</span>
+      </div>
+
+      <div class="readout" data-readout>
+        <div><span class="dirglyph" data-glyph>■</span><span class="big" data-live-rpm>0<small>RPM</small></span></div>
+        <div class="side">actual <b data-live-rate>0</b> steps/s<br>target <b data-target-rpm>0</b> RPM</div>
+      </div>
+
+      <div class="field">
+        <div class="field-head"><span class="label">Speed</span><span class="hint"><span class="num" data-rate-out></span> steps/s</span></div>
+        <div class="speed-row">
+          <input type="range" min="0" max="1000" step="1" data-slider>
+          <span class="numbox"><input type="number" min="0" step="0.1" inputmode="decimal" data-rpm><span>RPM</span></span>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-head"><span class="label">Direction</span><span class="hint">Changes smoothly while running</span></div>
+        <div class="seg" role="group">
+          <button data-dir="r" aria-pressed="false">◀ Reverse</button>
+          <button data-dir="f" aria-pressed="true">Forward ▶</button>
+        </div>
+      </div>
+
+      <button class="runbtn primary" data-run>▶ Run continuously</button>
+
+      <div class="field" style="margin-bottom:0">
+        <div class="field-head"><span class="label">Jog</span><span class="hint">Hold to move · release to stop</span></div>
+        <div class="jog">
+          <button data-hold="r">◀ Hold</button>
+          <button data-hold="f">Hold ▶</button>
+          <button data-stop title="Stop this axis">Stop</button>
+        </div>
+        <div class="timed">
+          <span class="hint">Timed move</span>
+          <span class="numbox"><input type="number" min="1" max="5000" data-ms aria-label="Timed move duration"><span>ms</span></span>
+          <button data-timed>Go</button>
+          <span class="hint">in the selected direction</span>
+        </div>
+      </div>
+
+      <details class="settings">
+        <summary>Driver settings</summary>
+        <div class="settings-grid">
+          <label>Pulses per revolution
+            <select data-ppr>
+              <option>200</option><option>400</option><option>800</option><option>1000</option>
+              <option>1600</option><option>2000</option><option>3200</option><option>4000</option>
+              <option>5000</option><option>6400</option><option>8000</option><option>10000</option>
+              <option>12800</option><option>20000</option><option>25600</option><option>40000</option><option>51200</option>
+            </select>
+          </label>
+          <label>Acceleration
+            <span class="numbox"><input type="number" min="100" max="200000" step="100" data-accel><span>steps/s²</span></span>
+          </label>
+        </div>
+        <div class="hint" data-settings-hint></div>
+      </details>
+    </section>
+  </template>
+
+  <div class="bottom">
+    <section class="card relay">
+      <div class="row-head"><span class="label">Relay · SSR 1</span><span class="axis-sub">D18 · GPIO18</span></div>
+      <div class="relay-state" id="ssrState">—</div>
+      <div class="seg" role="group" aria-label="SSR">
+        <button id="ssrOn">ON</button>
+        <button id="ssrOff">OFF</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row-head"><span class="label">Serial console</span><button class="smallbtn" id="clearLog">Clear</button></div>
+      <div class="log" id="log" aria-live="off"></div>
+      <form class="cmd" id="cmdForm">
+        <input id="cmdInput" placeholder="Type a command, e.g. status" autocomplete="off" spellcheck="false" disabled>
+        <button id="cmdSend" disabled>Send</button>
+      </form>
+    </section>
+  </div>
+
+  <footer>
+    Motors stop on <kbd>Esc</kbd>, on Stop, on release of a Hold button, and within 1.5 s if this page closes,
+    freezes, or loses the USB connection. Sensors and limit switches are feedback only; they never stop or block the motors.
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  // Must match the firmware limits in src/main.c.
+  const MIN_RATE = 50, MAX_RATE = 20000;
+  const KEEPALIVE_MS = 200;       // how often a running axis is renewed
+  const KEEPALIVE_JOG_MS = 1500;  // how long each renewal lets it run
+  const POLL_IDLE_MS = 1500, POLL_RUN_MS = 300;
+
+  const AXES = [
+    { id: 1, title: 'Axis 1 · T86S', pins: 'STEP D6/GPIO6 · DIR D7/GPIO7' },
+    { id: 2, title: 'Axis 2 · NEMA17', pins: 'STEP D14/GPIO14 · DIR D19/GPIO19' },
+  ];
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('reenvo.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('reenvo.' + k, JSON.stringify(v)); } catch {} },
+  };
+
+  const st = {
+    port: null, reader: null, writer: null, connected: false, closing: false,
+    raw: { A0: null, A1: null, A2: null, A3: null },
+    changedAt: {},
+    ssr: null,
+    irActive: { A0: 'low', A1: 'low', A2: 'low', A3: 'low', ...store.get('irActive', {}) },
+    pollSuppress: 0,
+    axis: {},
+  };
+  for (const a of AXES) {
+    const saved = store.get('axis' + a.id, {});
+    st.axis[a.id] = {
+      rate: saved.rate ?? 800, ppr: saved.ppr ?? 1600, accel: saved.accel ?? 8000,
+      dir: saved.dir ?? 'f', ms: saved.ms ?? 1000,
+      mode: null,          // null | 'run' | 'hold'
+      holdDir: null,
+      running: false, liveRate: 0, liveDir: 'f',
+    };
+  }
+  const saveAxis = id => {
+    const { rate, ppr, accel, dir, ms } = st.axis[id];
+    store.set('axis' + id, { rate, ppr, accel, dir, ms });
+  };
+
+  const clampRate = r => Math.min(MAX_RATE, Math.max(MIN_RATE, Math.round(r)));
+  const toRpm = (rate, ppr) => rate * 60 / ppr;
+  const fmtRpm = rpm => (rpm >= 100 ? rpm.toFixed(0) : rpm >= 10 ? rpm.toFixed(1) : rpm.toFixed(2));
+  const fmtInt = n => Math.round(n).toLocaleString();
+  const sliderToRate = p => clampRate(MIN_RATE * Math.pow(MAX_RATE / MIN_RATE, p / 1000));
+  const rateToSlider = r => Math.round(1000 * Math.log(r / MIN_RATE) / Math.log(MAX_RATE / MIN_RATE));
+
+  // ---------- Logging ----------
+  const logEl = $('#log');
+  let lastLog = null;
+  function log(kind, text) {
+    if (lastLog && lastLog.kind === kind && lastLog.text === text) {
+      lastLog.count++;
+      lastLog.n.textContent = ` ×${lastLog.count}`;
+      return;
+    }
+    const line = document.createElement('div');
+    line.className = kind;
+    const t = document.createElement('span');
+    t.className = 't';
+    t.textContent = new Date().toLocaleTimeString([], { hour12: false });
+    const body = document.createElement('span');
+    body.textContent = (kind === 'tx' ? '› ' : '') + text;
+    const n = document.createElement('span');
+    n.className = 'n';
+    line.append(t, body, n);
+    const atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 30;
+    logEl.append(line);
+    while (logEl.childElementCount > 400) logEl.firstElementChild.remove();
+    if (atBottom) logEl.scrollTop = logEl.scrollHeight;
+    lastLog = { kind, text, count: 1, n };
+  }
+  $('#clearLog').onclick = () => { logEl.textContent = ''; lastLog = null; };
+
+  let noticeTimer;
+  function notice(text, kind = 'info', ms = 5000) {
+    const el = $('#notice');
+    el.textContent = text;
+    el.className = `notice show ${kind}`;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  // ---------- Serial I/O ----------
+  const encoder = new TextEncoder();
+  let writeChain = Promise.resolve();
+  function send(cmd, { quiet = false } = {}) {
+    if (!st.connected || !st.writer) return Promise.resolve();
+    if (!quiet) log('tx', cmd);
+    writeChain = writeChain
+      .then(() => st.writer.write(encoder.encode(cmd + '\n')))
+      .catch(e => log('err', 'Write failed: ' + e.message));
+    return writeChain;
+  }
+
+  async function readLoop() {
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (st.port && st.port.readable && !st.closing) {
+      st.reader = st.port.readable.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await st.reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let i;
+          while ((i = buf.indexOf('\n')) >= 0) {
+            handleLine(buf.slice(0, i).replace(/\r$/, ''));
+            buf = buf.slice(i + 1);
+          }
+        }
+      } catch (e) {
+        if (!st.closing) log('err', 'Read error: ' + e.message);
+      } finally {
+        try { st.reader.releaseLock(); } catch {}
+        st.reader = null;
+      }
+    }
+  }
+
+  function syncAccel() {
+    for (const a of AXES) send(`accel ${a.id} ${st.axis[a.id].accel}`, { quiet: true });
+  }
+
+  async function connect() {
+    let port;
+    try {
+      port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a }] });
+    } catch { return; } // picker dismissed
+    try {
+      await port.open({ baudRate: 115200 });
+    } catch (e) {
+      notice('Could not open the port: ' + e.message + ' Close any other serial monitor using it.', 'danger', 9000);
+      return;
+    }
+    st.port = port;
+    st.writer = port.writable.getWriter();
+    st.closing = false;
+    setConnected(true);
+    log('sys', 'Port opened.');
+    readLoop().then(onPortClosed);
+    setTimeout(() => { syncAccel(); send('status'); }, 700);
+  }
+
+  async function disconnect() {
+    stopAllModes(false);
+    await send('stop all');
+    st.closing = true;
+    try { await st.reader?.cancel(); } catch {}
+    try { await writeChain; st.writer?.releaseLock(); } catch {}
+    try { await st.port?.close(); } catch {}
+  }
+
+  function onPortClosed() {
+    const unexpected = !st.closing;
+    st.closing = true;
+    try { st.writer?.releaseLock(); } catch {}
+    st.port?.close().catch(() => {});
+    st.port = null; st.writer = null;
+    setConnected(false);
+    log(unexpected ? 'err' : 'sys', unexpected ? 'Board disconnected.' : 'Port closed.');
+    if (unexpected) notice('Lost connection to the board. Check the USB cable.', 'danger', 9000);
+  }
+
+  if ('serial' in navigator) {
+    navigator.serial.addEventListener('disconnect', e => { if (e.target === st.port) onPortClosed(); });
+  }
+
+  // ---------- Parsing firmware output ----------
+  const lvl = s => (/HIGH/.test(s) ? 1 : 0);
+  const axisByName = n => (n === 'T86S' ? 1 : 2);
+
+  function handleLine(line) {
+    if (!line.trim()) return;
+    let m;
+
+    if ((m = line.match(/^Sensors: A0\/GPIO0=(\S+)\s+A1\/GPIO1=(\S+) \| Limits: A2\/GPIO2=(\S+)\s+A3\/GPIO3=(\S+)/))) {
+      setInput('A0', lvl(m[1])); setInput('A1', lvl(m[2]));
+      setInput('A2', lvl(m[3])); setInput('A3', lvl(m[4]));
+      if (st.pollSuppress > 0) { st.pollSuppress--; return; }
+    } else if ((m = line.match(/^Motors: 1=(\w+)\s+2=(\w+) \| SSR=(ON|OFF)(?: \| Rate: 1=(\d+) 2=(\d+) \| Dir: 1=([fr]) 2=([fr]))?/))) {
+      setSsr(m[3] === 'ON');
+      setMotor(1, m[1] === 'running', m[4] === undefined ? undefined : +m[4], m[6]);
+      setMotor(2, m[2] === 'running', m[5] === undefined ? undefined : +m[5], m[7]);
+      if (st.pollSuppress > 0) { st.pollSuppress--; return; }
+    } else if ((m = line.match(/^(?:Sensor|Limit) (A[0-3])\/GPIO\d: (?:TRIPPED\/)?(HIGH|LOW)/))) {
+      setInput(m[1], m[2] === 'HIGH' ? 1 : 0);
+    } else if ((m = line.match(/^Axis (\d) jog (started|updated)/))) {
+      setMotor(+m[1], true);
+      if (m[2] === 'updated') { log('sys', line); return; }
+    } else if ((m = line.match(/^(T86S|NEMA17) jog complete/))) {
+      const id = axisByName(m[1]);
+      setMotor(id, false);
+      if (st.axis[id].mode) { endMode(id, false); notice(`Axis ${id} stopped: the panel stopped renewing its run.`, 'warn'); }
+    } else if ((m = line.match(/^(T86S|NEMA17) stopped: (.*)/))) {
+      const id = axisByName(m[1]);
+      endMode(id, false); setMotor(id, false);
+      notice(`Axis ${id} stopped: ${m[2]}`, 'danger');
+      log('warn', line); return;
+    } else if (/^Both motors stopped/.test(line)) {
+      setMotor(1, false); setMotor(2, false);
+    } else if ((m = line.match(/^Axis (\d) stopped/))) {
+      setMotor(+m[1], false);
+    } else if ((m = line.match(/^SSR (ON|OFF)\./))) {
+      setSsr(m[1] === 'ON');
+    } else if (/^Axis \d acceleration set/.test(line)) {
+      log('sys', line); return;
+    } else if (/rejected|Invalid|Unknown command|Usage:|unavailable/.test(line)) {
+      log('warn', line); return;
+    } else if (/USB serial input closed/.test(line)) {
+      notice('The board stopped reading commands. Reset it or reflash the firmware.', 'danger', 9000);
+      log('err', line); return;
+    } else if (/wired USB control ready/.test(line)) {
+      stopAllModes(false);
+      setMotor(1, false); setMotor(2, false); setSsr(false);
+      setTimeout(() => { syncAccel(); send('status'); }, 200);
+      notice('Board restarted. All outputs are off.', 'info');
+    }
+    log(/^[IWE] \(\d+\)|^ESP-ROM|^rst:|^load:|^entry|^Build:|^SPIWP|^mode:|^Saved PC/.test(line) ? 'sys' : 'rx', line);
+  }
+
+  // ---------- Sensors ----------
+  const fmtTime = d => d.toLocaleTimeString([], { hour12: false });
+
+  function triggered(pin) {
+    const raw = st.raw[pin];
+    if (raw === null) return null;
+    // Inputs idle HIGH (internal pull-ups), so by default a LOW level means triggered.
+    return st.irActive[pin] === 'high' ? raw === 1 : raw === 0;
+  }
+
+  function setInput(pin, raw) {
+    const prev = st.raw[pin];
+    st.raw[pin] = raw;
+    if (prev !== raw) {
+      st.changedAt[pin] = new Date();
+      if (prev !== null) {
+        const tile = $('#tile-' + pin);
+        tile.classList.remove('flash'); void tile.offsetWidth; tile.classList.add('flash');
+      }
+    }
+    $('#lastUpdate').textContent = 'Updated ' + fmtTime(new Date());
+    renderInput(pin);
+  }
+
+  function renderInput(pin) {
+    const tile = $('#tile-' + pin);
+    const t = triggered(pin);
+    tile.classList.toggle('true', t === true);
+    tile.classList.toggle('false', t === false);
+    $('.value', tile).textContent = t === null ? '—' : (t ? 'TRUE' : 'FALSE');
+    $('.raw', tile).textContent = 'raw ' + (st.raw[pin] === null ? '—' : (st.raw[pin] ? 'HIGH' : 'LOW'))
+      + (st.changedAt[pin] ? ' · ' + fmtTime(st.changedAt[pin]) : '');
+  }
+
+  $$('.tile select').forEach(sel => {
+    const pin = sel.dataset.pin;
+    sel.value = st.irActive[pin];
+    sel.addEventListener('change', () => {
+      st.irActive[pin] = sel.value;
+      store.set('irActive', st.irActive);
+      renderInput(pin);
+    });
+  });
+
+  // ---------- Axes ----------
+  const cards = {};
+  for (const a of AXES) {
+    const node = $('#axisTpl').content.firstElementChild.cloneNode(true);
+    node.dataset.axis = a.id;
+    $('[data-title]', node).textContent = a.title;
+    $('[data-pins]', node).textContent = a.pins;
+    $('#axes').append(node);
+    cards[a.id] = node;
+    wireAxis(a.id, node);
+  }
+
+  function wireAxis(id, card) {
+    const ax = st.axis[id];
+    const slider = $('[data-slider]', card);
+    const rpmIn = $('[data-rpm]', card);
+    const pprSel = $('[data-ppr]', card);
+    const accelIn = $('[data-accel]', card);
+    const msIn = $('[data-ms]', card);
+
+    slider.setAttribute('aria-label', `Axis ${id} speed`);
+    rpmIn.setAttribute('aria-label', `Axis ${id} speed in RPM`);
+    if (![...pprSel.options].some(o => +o.value === ax.ppr)) pprSel.add(new Option(String(ax.ppr)));
+    pprSel.value = String(ax.ppr);
+    accelIn.value = ax.accel;
+    msIn.value = ax.ms;
+
+    slider.addEventListener('input', () => { ax.rate = sliderToRate(+slider.value); afterSpeedChange(id, 'slider'); });
+    rpmIn.addEventListener('change', () => {
+      const rpm = parseFloat(rpmIn.value);
+      if (Number.isFinite(rpm) && rpm > 0) ax.rate = clampRate(rpm * ax.ppr / 60);
+      afterSpeedChange(id);
+      rpmIn.value = fmtRpm(toRpm(ax.rate, ax.ppr));
+    });
+    pprSel.addEventListener('change', () => { ax.ppr = +pprSel.value; saveAxis(id); renderAxis(id); });
+    accelIn.addEventListener('change', () => {
+      ax.accel = Math.min(200000, Math.max(100, Math.round(+accelIn.value || 8000)));
+      accelIn.value = ax.accel; saveAxis(id); renderAxis(id);
+      send(`accel ${id} ${ax.accel}`);
+    });
+    msIn.addEventListener('change', () => {
+      ax.ms = Math.min(5000, Math.max(1, Math.round(+msIn.value || 1000)));
+      msIn.value = ax.ms; saveAxis(id);
+    });
+
+    $$('[data-dir]', card).forEach(b => b.addEventListener('click', () => {
+      ax.dir = b.dataset.dir; saveAxis(id); renderAxis(id);
+      if (ax.mode === 'run') renew(id, false);
+    }));
+
+    $('[data-run]', card).addEventListener('click', () => {
+      if (ax.mode === 'run') endMode(id, true);
+      else startMode(id, 'run');
+    });
+
+    $$('[data-hold]', card).forEach(btn => {
+      btn.addEventListener('pointerdown', e => {
+        if (e.button !== 0 || btn.disabled) return;
+        e.preventDefault();
+        btn.setPointerCapture(e.pointerId);
+        startMode(id, 'hold', btn.dataset.hold);
+      });
+      for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        btn.addEventListener(ev, () => { if (ax.mode === 'hold') endMode(id, true); });
+      }
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+    });
+
+    $('[data-timed]', card).addEventListener('click', () => {
+      msIn.dispatchEvent(new Event('change'));
+      send(`jog ${id} ${ax.dir} ${ax.ms} ${ax.rate}`);
+    });
+
+    $('[data-stop]', card).addEventListener('click', () => { endMode(id, false); send(`stop ${id}`); });
+  }
+
+  function afterSpeedChange(id, source) {
+    saveAxis(id);
+    renderAxis(id, source);
+    if (st.axis[id].mode) renew(id, true);
+  }
+
+  function activeDir(id) {
+    const ax = st.axis[id];
+    return ax.mode === 'hold' ? ax.holdDir : ax.dir;
+  }
+
+  function renew(id, quiet) {
+    const ax = st.axis[id];
+    if (!ax.mode) return;
+    send(`jog ${id} ${activeDir(id)} ${KEEPALIVE_JOG_MS} ${ax.rate}`, { quiet });
+  }
+
+  function startMode(id, mode, holdDir) {
+    if (!st.connected) return;
+    const ax = st.axis[id];
+    if (ax.mode) return;
+    ax.mode = mode;
+    ax.holdDir = holdDir || null;
+    renew(id, false);
+    renderAxis(id);
+  }
+
+  function endMode(id, sendStop) {
+    const ax = st.axis[id];
+    if (!ax.mode) return;
+    ax.mode = null;
+    ax.holdDir = null;
+    if (sendStop) send(`stop ${id}`);
+    renderAxis(id);
+  }
+
+  function stopAllModes(sendStop) { for (const a of AXES) endMode(a.id, sendStop); }
+
+  function setMotor(id, running, rate, dir) {
+    const ax = st.axis[id];
+    ax.running = running;
+    if (!running) ax.liveRate = 0;
+    else if (rate !== undefined) ax.liveRate = rate;
+    if (dir) ax.liveDir = dir;
+    renderAxis(id);
+  }
+
+  function renderAxis(id, source) {
+    const ax = st.axis[id];
+    const card = cards[id];
+    const connected = st.connected;
+
+    // Speed controls
+    if (source !== 'slider') $('[data-slider]', card).value = rateToSlider(ax.rate);
+    const rpmIn = $('[data-rpm]', card);
+    if (document.activeElement !== rpmIn) rpmIn.value = fmtRpm(toRpm(ax.rate, ax.ppr));
+    $('[data-rate-out]', card).textContent = fmtInt(ax.rate);
+    $('[data-target-rpm]', card).textContent = fmtRpm(toRpm(ax.rate, ax.ppr));
+
+    // Live readout (from the board's reported pulse rate)
+    const live = connected && ax.running;
+    const liveRate = live ? ax.liveRate : 0;
+    $('[data-readout]', card).classList.toggle('live', live);
+    $('[data-live-rpm]', card).firstChild.textContent = fmtRpm(toRpm(liveRate, ax.ppr));
+    $('[data-live-rate]', card).textContent = fmtInt(liveRate);
+    $('[data-glyph]', card).textContent = live ? (ax.liveDir === 'r' ? '◀' : '▶') : '■';
+
+    // Badge
+    const badge = $('[data-badge]', card);
+    if (!connected) { badge.textContent = '—'; badge.className = 'badge'; }
+    else if (ax.running) {
+      const d = ax.liveDir === 'r' ? '◀ REVERSE' : 'FORWARD ▶';
+      badge.textContent = (ax.mode === 'run' ? 'RUNNING ' : ax.mode === 'hold' ? 'JOGGING ' : 'MOVING ') + d;
+      badge.className = 'badge run';
+    } else { badge.textContent = 'STOPPED'; badge.className = 'badge'; }
+
+    // Direction
+    $$('[data-dir]', card).forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.dir === ax.dir));
+      b.disabled = !connected || ax.mode === 'hold';
+    });
+
+    // Run / hold / timed / stop
+    const run = $('[data-run]', card);
+    run.disabled = !connected || ax.mode === 'hold';
+    run.classList.toggle('running', ax.mode === 'run');
+    run.classList.toggle('primary', ax.mode !== 'run');
+    run.textContent = ax.mode === 'run' ? '■ Stop' : '▶ Run continuously';
+    $$('[data-hold]', card).forEach(b => {
+      b.disabled = !connected || ax.mode === 'run';
+      b.classList.toggle('active', ax.mode === 'hold' && ax.holdDir === b.dataset.hold);
+    });
+    $('[data-timed]', card).disabled = !connected || !!ax.mode;
+    $('[data-stop]', card).disabled = !connected;
+
+    // Settings hint
+    const minRpm = toRpm(MIN_RATE, ax.ppr), maxRpm = toRpm(MAX_RATE, ax.ppr);
+    $('[data-settings-hint]', card).textContent =
+      `Set pulses/rev to match the driver's microstep DIP switches. ` +
+      `Range at this setting: ${fmtRpm(minRpm)}–${fmtRpm(maxRpm)} RPM. ` +
+      `Acceleration ≈ ${fmtRpm(toRpm(ax.accel, ax.ppr))} RPM per second.`;
+  }
+
+  // Keepalive: renew running axes. A worker timer keeps ticking while the tab is in the background.
+  function tick() {
+    if (!st.connected) return;
+    for (const a of AXES) if (st.axis[a.id].mode) renew(a.id, true);
+  }
+  try {
+    const src = `setInterval(() => postMessage(0), ${KEEPALIVE_MS});`;
+    const worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    worker.onmessage = tick;
+  } catch {
+    setInterval(tick, KEEPALIVE_MS);
+  }
+
+  // Status polling (faster while anything is moving, for the live readout)
+  let lastPoll = 0;
+  setInterval(() => {
+    if (!st.connected || document.hidden) return;
+    const moving = AXES.some(a => st.axis[a.id].running || st.axis[a.id].mode);
+    const now = Date.now();
+    if (now - lastPoll < (moving ? POLL_RUN_MS : POLL_IDLE_MS)) return;
+    lastPoll = now;
+    st.pollSuppress = 2;
+    send('status', { quiet: true });
+  }, 100);
+
+  // ---------- Relay ----------
+  function setSsr(on) {
+    st.ssr = on;
+    const el = $('#ssrState');
+    el.textContent = on ? 'ON' : 'OFF';
+    el.className = 'relay-state ' + (on ? 'on' : 'off');
+    $('#ssrOn').classList.toggle('sel-on', on);
+    $('#ssrOff').classList.toggle('sel-off', !on);
+  }
+  $('#ssrOn').addEventListener('click', () => send('ssr on'));
+  $('#ssrOff').addEventListener('click', () => send('ssr off'));
+
+  // ---------- Global ----------
+  function setConnected(on) {
+    st.connected = on;
+    $('#chip').classList.toggle('on', on);
+    $('#chipText').textContent = on ? 'Connected' : 'Disconnected';
+    $('#connectBtn').textContent = on ? 'Disconnect' : 'Connect board';
+    $('#connectBtn').classList.toggle('primary', !on);
+    $('#estop').disabled = !on;
+    $('#ssrOn').disabled = !on; $('#ssrOff').disabled = !on;
+    $('#cmdInput').disabled = !on; $('#cmdSend').disabled = !on;
+    if (!on) {
+      stopAllModes(false);
+      for (const p of ['A0', 'A1', 'A2', 'A3']) { st.raw[p] = null; st.changedAt[p] = null; renderInput(p); }
+      for (const a of AXES) { st.axis[a.id].running = false; st.axis[a.id].liveRate = 0; }
+      st.ssr = null;
+      $('#ssrState').textContent = '—'; $('#ssrState').className = 'relay-state';
+      $('#ssrOn').classList.remove('sel-on'); $('#ssrOff').classList.remove('sel-off');
+      $('#lastUpdate').textContent = 'No data yet';
+    }
+    for (const a of AXES) renderAxis(a.id);
+  }
+
+  function stopAll() {
+    if (!st.connected) return;
+    stopAllModes(false);
+    send('stop all');
+  }
+  $('#estop').addEventListener('click', stopAll);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); stopAll(); } });
+  // Hold-to-jog must not outlive the press; continuous runs keep going in the background.
+  const endHolds = () => { for (const a of AXES) if (st.axis[a.id].mode === 'hold') endMode(a.id, true); };
+  window.addEventListener('blur', endHolds);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) endHolds(); });
+  window.addEventListener('pagehide', () => { if (st.connected) send('stop all', { quiet: true }); });
+
+  $('#cmdForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const v = $('#cmdInput').value.trim();
+    if (!v) return;
+    send(v);
+    $('#cmdInput').value = '';
+  });
+
+  $('#connectBtn').addEventListener('click', () => (st.connected ? disconnect() : connect()));
+
+  if (!('serial' in navigator)) {
+    $('#unsupported').hidden = false;
+    $('#connectBtn').disabled = true;
+  }
+  setConnected(false);
+  log('sys', 'Click "Connect board" and choose the Espressif USB JTAG/serial port (usbmodem).');
+
+  // Exposed for testing the parser without hardware.
+  window.reenvo = { handleLine, state: st, setConnected, renderAxis };
+})();
+</script>
+</body>
+</html>

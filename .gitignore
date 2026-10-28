@@ -1,0 +1,5 @@
+.pio/
+.vscode/.browse.c
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch/
