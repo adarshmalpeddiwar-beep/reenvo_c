@@ -357,6 +357,8 @@
   .tile.false .lamp { box-shadow: 0 0 10px var(--danger); }
   .tile.true .lamp { box-shadow: 0 0 14px var(--ok), 0 0 0 4px rgba(54,255,160,.18); }
   .tile .meta select, .settings-grid select, .numbox, .cmd input { border-radius: 0; background: rgba(0,10,18,.8); color: var(--text); }
+  .guide-note { font: 11.5px/1.45 var(--mono); color: var(--muted); border-left: 2px solid var(--warn); padding: 4px 10px; margin: -6px 0 14px; background: rgba(255,178,31,.06); }
+  .guide-note b { color: var(--warn); font-weight: 600; }
   .readout { border-radius: 0; background: rgba(0, 8, 14, .75); border-left: 3px solid var(--accent); }
   .readout .big { text-shadow: 0 0 16px rgba(0,229,255,.55); }
   .readout.live { border-left-color: var(--ok); box-shadow: 0 0 22px rgba(54,255,160,.12) inset; }
@@ -484,14 +486,14 @@
         </div>
       </div>
       <div class="tile limit" id="tile-A2">
-        <span class="lamp"></span><span class="name">Limit switch 1</span><span class="pin">A2 · GPIO2</span>
+        <span class="lamp"></span><span class="name">Limit 1 · TOP</span><span class="pin">A2 · GPIO2</span>
         <div class="value">—</div>
         <div class="meta"><span class="raw">raw —</span>
           <label>true when <select data-pin="A2" aria-label="Limit switch 1 triggered level"><option value="low">LOW</option><option value="high">HIGH</option></select></label>
         </div>
       </div>
       <div class="tile limit" id="tile-A3">
-        <span class="lamp"></span><span class="name">Limit switch 2</span><span class="pin">A3 · GPIO3</span>
+        <span class="lamp"></span><span class="name">Limit 2 · BOTTOM</span><span class="pin">A3 · GPIO3</span>
         <div class="value">—</div>
         <div class="meta"><span class="raw">raw —</span>
           <label>true when <select data-pin="A3" aria-label="Limit switch 2 triggered level"><option value="low">LOW</option><option value="high">HIGH</option></select></label>
@@ -590,7 +592,7 @@
 
   <footer>
     Motors stop on <kbd>Esc</kbd>, on Stop, on release of a Hold button, and within 1.5 s if this page closes,
-    freezes, or loses the USB connection. Sensors and limit switches are feedback only; they never stop or block the motors.
+    freezes, or loses the USB connection. Axis 1 ignores the sensors and limit switches. Axis 2 (vertical guide) reverses or stops at limit 1 (top) and limit 2 (bottom); the firmware enforces this even if the page freezes.
   </footer>
 </div>
 
@@ -607,8 +609,15 @@
 
   const AXES = [
     { id: 1, title: 'Axis 1 · T86S', pins: 'STEP D6/GPIO6 · DIR D7/GPIO7' },
-    { id: 2, title: 'Axis 2 · NEMA17', pins: 'STEP D14/GPIO14 · DIR D19/GPIO19' },
+    { id: 2, title: 'Axis 2 · NEMA17 · vertical', pins: 'STEP D14/GPIO14 · DIR D19/GPIO19' },
   ];
+
+  // Axis 2 drives a vertical guide: forward = up, reverse = down.
+  const DIRW = {
+    1: { f: 'FORWARD', r: 'REVERSE', gf: '▶', gr: '◀' },
+    2: { f: 'UP', r: 'DOWN', gf: '▲', gr: '▼' },
+  };
+  const dirText = (id, d) => (d === 'r' ? `${DIRW[id].gr} ${DIRW[id].r}` : `${DIRW[id].f} ${DIRW[id].gf}`);
 
   const store = {
     get(k, d) { try { const v = localStorage.getItem('reenvo.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
@@ -724,6 +733,12 @@
 
   function syncAccel() {
     for (const a of AXES) send(`accel ${a.id} ${st.axis[a.id].accel}`, { quiet: true });
+    syncLimits();
+  }
+  // Tell the firmware which level trips each limit switch (axis 2 reverses/stops on them).
+  function syncLimits() {
+    send(`limit 1 ${st.irActive.A2}`, { quiet: true });
+    send(`limit 2 ${st.irActive.A3}`, { quiet: true });
   }
 
   async function connect() {
@@ -801,6 +816,15 @@
       endMode(id, false); setMotor(id, false);
       notice(`Axis ${id} stopped: ${m[2]}`, 'danger');
       log('warn', line); return;
+    } else if ((m = line.match(/^Axis (\d) stopped at the (up|down) limit/))) {
+      const id = +m[1];
+      endMode(id, false); setMotor(id, false);
+      notice(`Axis ${id} stopped at the ${m[2]} limit.`, 'info');
+    } else if ((m = line.match(/^Axis (\d) hit the (up|down) limit; reversing (up|down)/))) {
+      setMotor(+m[1], true, undefined, m[3] === 'up' ? 'f' : 'r');
+      log('sys', line); return;
+    } else if (/^Limit \d is tripped/.test(line)) {
+      log('sys', line); return;
     } else if (/^Both motors stopped/.test(line)) {
       setMotor(1, false); setMotor(2, false);
     } else if ((m = line.match(/^Axis (\d) stopped/))) {
@@ -809,7 +833,7 @@
       setSsr(m[1] === 'ON');
     } else if (/^Axis \d acceleration set/.test(line)) {
       log('sys', line); return;
-    } else if (/rejected|Invalid|Unknown command|Usage:|unavailable/.test(line)) {
+    } else if (/rejected|Invalid|Unknown command|Usage:|unavailable|blocked|not started/.test(line)) {
       log('warn', line); return;
     } else if (/USB serial input closed/.test(line)) {
       notice('The board stopped reading commands. Reset it or reflash the firmware.', 'danger', 9000);
@@ -865,6 +889,7 @@
       st.irActive[pin] = sel.value;
       store.set('irActive', st.irActive);
       renderInput(pin);
+      if (st.connected && (pin === 'A2' || pin === 'A3')) syncLimits();
     });
   });
 
@@ -875,6 +900,16 @@
     node.dataset.axis = a.id;
     $('[data-title]', node).textContent = a.title;
     $('[data-pins]', node).textContent = a.pins;
+    if (a.id === 2) {
+      $('[data-dir="r"]', node).textContent = '▼ Down';
+      $('[data-dir="f"]', node).textContent = 'Up ▲';
+      $('[data-hold="r"]', node).textContent = '▼ Hold';
+      $('[data-hold="f"]', node).textContent = 'Hold ▲';
+      const note = document.createElement('div');
+      note.className = 'guide-note';
+      note.innerHTML = 'Vertical guide · <b>Run</b> cycles up and down, reversing at <b>Limit 1 (top)</b> and <b>Limit 2 (bottom)</b>. Hold and timed moves stop at the limit.';
+      $('.readout', node).after(note);
+    }
     $('#axes').append(node);
     cards[a.id] = node;
     wireAxis(a.id, node);
@@ -915,7 +950,7 @@
 
     $$('[data-dir]', card).forEach(b => b.addEventListener('click', () => {
       ax.dir = b.dataset.dir; saveAxis(id); renderAxis(id);
-      if (ax.mode === 'run') renew(id, false);
+      if (ax.mode === 'run') { ax.sweeping = false; renew(id, false); }  // explicit direction = reverse now
     }));
 
     $('[data-run]', card).addEventListener('click', () => {
@@ -958,6 +993,13 @@
   function renew(id, quiet) {
     const ax = st.axis[id];
     if (!ax.mode) return;
+    if (id === 2 && ax.mode === 'run') {
+      // The firmware owns the direction once the sweep runs ('k' = keep it, so the
+      // renewals never fight the reversal at a limit switch).
+      send(`sweep 2 ${ax.sweeping ? 'k' : ax.dir} ${KEEPALIVE_JOG_MS} ${ax.rate}`, { quiet });
+      ax.sweeping = true;
+      return;
+    }
     send(`jog ${id} ${activeDir(id)} ${KEEPALIVE_JOG_MS} ${ax.rate}`, { quiet });
   }
 
@@ -976,6 +1018,7 @@
     if (!ax.mode) return;
     ax.mode = null;
     ax.holdDir = null;
+    ax.sweeping = false;
     if (sendStop) send(`stop ${id}`);
     renderAxis(id);
   }
@@ -1009,13 +1052,13 @@
     $('[data-readout]', card).classList.toggle('live', live);
     $('[data-live-rpm]', card).firstChild.textContent = fmtRpm(toRpm(liveRate, ax.ppr));
     $('[data-live-rate]', card).textContent = fmtInt(liveRate);
-    $('[data-glyph]', card).textContent = live ? (ax.liveDir === 'r' ? '◀' : '▶') : '■';
+    $('[data-glyph]', card).textContent = live ? (ax.liveDir === 'r' ? DIRW[id].gr : DIRW[id].gf) : '■';
 
     // Badge
     const badge = $('[data-badge]', card);
     if (!connected) { badge.textContent = '—'; badge.className = 'badge'; }
     else if (ax.running) {
-      const d = ax.liveDir === 'r' ? '◀ REVERSE' : 'FORWARD ▶';
+      const d = dirText(id, ax.liveDir);
       badge.textContent = (ax.mode === 'run' ? 'RUNNING ' : ax.mode === 'hold' ? 'JOGGING ' : 'MOVING ') + d;
       badge.className = 'badge run';
     } else { badge.textContent = 'STOPPED'; badge.className = 'badge'; }
@@ -1031,7 +1074,7 @@
     run.disabled = !connected || ax.mode === 'hold';
     run.classList.toggle('running', ax.mode === 'run');
     run.classList.toggle('primary', ax.mode !== 'run');
-    run.textContent = ax.mode === 'run' ? '■ Stop' : '▶ Run continuously';
+    run.textContent = ax.mode === 'run' ? '■ Stop' : (id === 2 ? '⇅ Run up & down between limits' : '▶ Run continuously');
     $$('[data-hold]', card).forEach(b => {
       b.disabled = !connected || ax.mode === 'run';
       b.classList.toggle('active', ax.mode === 'hold' && ax.holdDir === b.dataset.hold);
@@ -1280,12 +1323,12 @@
     ${motorSide(2, 308, 64, 5.5, true)}${motorEnd(2, 770, 308, 46)}
     <text class="big-t" x="330" y="408" text-anchor="middle">AXIS 1 · NEMA34</text>
     <text id="rd1" x="330" y="424" text-anchor="middle" style="fill:var(--text)">0.0 RPM · STOPPED</text>
-    <text class="big-t" x="770" y="408" text-anchor="middle">AXIS 2 · NEMA17</text>
+    <text class="big-t" x="770" y="408" text-anchor="middle">AXIS 2 · NEMA17 · Z</text>
     <text id="rd2" x="770" y="424" text-anchor="middle" style="fill:var(--text)">0.0 RPM · STOPPED</text>
 
     ${irItem('A0', 150, 'IR 1')}${irItem('A1', 340, 'IR 2')}
     ${ssrItem(550)}
-    ${limitItem('A2', 760, 'LIMIT 1')}${limitItem('A3', 950, 'LIMIT 2')}
+    ${limitItem('A2', 760, 'TOP LIMIT')}${limitItem('A3', 950, 'BOTTOM LIMIT')}
   </svg>`;
 
   const rigSvg = $('#rigSvg');
@@ -1308,7 +1351,7 @@
     }
     byId('ledS' + id).setAttribute('class', 'led' + (live ? ' a' : ''));
     const rpm = live ? toRpm(ax.liveRate, ax.ppr) : 0;
-    byId('rd' + id).textContent = `${fmtRpm(rpm)} RPM · ${live ? (rev ? 'REVERSE ◀' : 'FORWARD ▶') : st.connected ? 'STOPPED' : 'OFFLINE'}`;
+    byId('rd' + id).textContent = `${fmtRpm(rpm)} RPM · ${live ? (id === 2 ? (rev ? 'DOWN ▼' : 'UP ▲') : (rev ? 'REVERSE ◀' : 'FORWARD ▶')) : st.connected ? 'STOPPED' : 'OFFLINE'}`;
   };
 
   hud.input = function (pin, t) {

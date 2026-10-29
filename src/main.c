@@ -22,6 +22,7 @@
 #define DEFAULT_ACCEL 8000
 #define MAX_JOG_DURATION_MS 5000
 #define CONTROL_PERIOD_MS 10
+#define LIMIT_DEBOUNCE_TICKS 2  // consecutive control ticks a limit must stay tripped
 
 typedef struct {
   const char *name;
@@ -36,6 +37,11 @@ typedef struct {
   uint32_t target_rate;   // requested pulse rate; reached by ramping
   uint32_t accel;         // steps/s^2
   int64_t stop_at_us;
+  bool guarded;           // travel is limited by the up/down limit switches
+  bool sweep;             // reverse at each limit instead of stopping
+  int last_dir;           // direction seen by the limit guard (-1 = idle)
+  bool opp_armed;         // opposite limit was seen clear since the move began
+  bool block_noted;       // already reported a blocked jog
 } motor_t;
 
 static motor_t motors[] = {
@@ -44,10 +50,15 @@ static motor_t motors[] = {
      .direction = 1, .accel = DEFAULT_ACCEL},
     {.name = "NEMA17", .step_pin = GPIO_NUM_14, .dir_pin = GPIO_NUM_19,
      .timer = LEDC_TIMER_1, .channel = LEDC_CHANNEL_1,
-     .direction = 1, .accel = DEFAULT_ACCEL},
+     .direction = 1, .accel = DEFAULT_ACCEL, .guarded = true, .last_dir = -1},
 };
 
 static const gpio_num_t sensor_pins[] = {GPIO_NUM_0, GPIO_NUM_1};
+// The NEMA17 axis (axis 2) drives a vertical guide: forward = up, reverse = down.
+// Limit 1 (A2/GPIO2) is the top switch and limit 2 (A3/GPIO3) the bottom one.
+static const gpio_num_t limit_pins[2] = {GPIO_NUM_2, GPIO_NUM_3};
+static int limit_active_level[2] = {0, 0};  // switch closes to GND: LOW = tripped
+static int limit_count[2];
 static const gpio_num_t ssr_pin = GPIO_NUM_18;
 static bool ssr_on;
 static SemaphoreHandle_t control_mutex;
@@ -71,12 +82,31 @@ static bool set_step_rate(motor_t *motor, uint32_t rate) {
   return true;
 }
 
+static void sample_limits(void) {
+  for (int i = 0; i < 2; ++i) {
+    if (gpio_get_level(limit_pins[i]) == limit_active_level[i]) {
+      if (limit_count[i] < 1000) {
+        limit_count[i]++;
+      }
+    } else {
+      limit_count[i] = 0;
+    }
+  }
+}
+
+static bool limit_hit(int i) { return limit_count[i] >= LIMIT_DEBOUNCE_TICKS; }
+
 // Starts the motor, or retargets it if it is already running. A running motor
 // keeps its current speed and ramps toward the new target; a direction change
 // is applied by the control task once the motor has slowed to START_STEP_RATE.
 // Returns true if the motor was started or its direction/speed changed.
+// direction: 1 = forward, 0 = reverse, -1 = keep the current direction (sweep).
 static bool start_motor(motor_t *motor, int direction, uint32_t step_rate,
-                        uint32_t duration_ms) {
+                        uint32_t duration_ms, bool sweep) {
+  if (direction < 0) {
+    direction = motor->running ? motor->target_direction : motor->direction;
+  }
+  motor->sweep = sweep && motor->guarded;
   const bool changed = !motor->running ||
                        motor->target_direction != direction ||
                        motor->target_rate != step_rate;
@@ -130,10 +160,71 @@ static void update_motor(motor_t *motor, int64_t elapsed_us) {
   }
 }
 
+static int motor_axis(const motor_t *motor) { return (int)(motor - motors) + 1; }
+
+// Stops the pulses, flips DIR and restarts at the start rate: the carriage
+// backs off the switch it just hit and ramps up again.
+static void reverse_at_limit(motor_t *motor) {
+  const bool was_up = motor->direction != 0;
+  ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, motor->channel, 0));
+  ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, motor->channel));
+  motor->direction = was_up ? 0 : 1;
+  motor->target_direction = motor->direction;
+  ESP_ERROR_CHECK(gpio_set_level(motor->dir_pin, motor->direction));
+  esp_rom_delay_us(20);
+  const uint32_t first =
+      motor->target_rate < START_STEP_RATE ? motor->target_rate : START_STEP_RATE;
+  if (set_step_rate(motor, first)) {
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, motor->channel, 512));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, motor->channel));
+  }
+  printf("Axis %d hit the %s limit; reversing %s.\n", motor_axis(motor),
+         was_up ? "up" : "down", was_up ? "down" : "up");
+}
+
+// Limit guard for a motor on the vertical guide. Only the switch in the
+// direction of travel matters: hitting it reverses (sweep) or stops (jog).
+static void guard_motor(motor_t *motor) {
+  if (!motor->guarded || !motor->running) {
+    motor->last_dir = -1;
+    return;
+  }
+  const int same = motor->direction ? 0 : 1;
+  const int opp = 1 - same;
+  if (motor->direction != motor->last_dir) {
+    motor->opp_armed = !limit_hit(opp);
+    motor->last_dir = motor->direction;
+  }
+  if (!limit_hit(opp)) {
+    motor->opp_armed = true;
+  }
+  if (limit_hit(same) && limit_hit(opp)) {
+    stop_motor(motor);
+    printf("%s stopped: both limit switches are tripped. Check the switch wiring.\n",
+           motor->name);
+  } else if (limit_hit(opp) && motor->opp_armed) {
+    stop_motor(motor);
+    printf("%s stopped: the %s limit tripped while moving %s. Up and down are "
+           "swapped, or a switch is wired wrong.\n",
+           motor->name, opp ? "down" : "up", motor->direction ? "up" : "down");
+  } else if (limit_hit(same)) {
+    if (motor->sweep) {
+      reverse_at_limit(motor);
+    } else {
+      const bool was_up = motor->direction != 0;
+      stop_motor(motor);
+      printf("Axis %d stopped at the %s limit.\n", motor_axis(motor),
+             was_up ? "up" : "down");
+    }
+  }
+}
+
 static void print_help(void) {
   printf("\nCommands:\n"
          "  status                                  Show inputs and outputs\n"
          "  jog <axis 1|2> <f|r> <ms> [steps/s]    Bounded motor jog\n"
+         "  sweep 2 <f|r|k> <ms> [steps/s]          Axis 2 up/down, reverses at each limit\n"
+         "  limit <1|2> <low|high>                  Level at which a limit switch is tripped\n"
          "  accel <axis 1|2> <steps/s^2>            Set acceleration\n"
          "  stop [1|2|all]                          Stop motor(s)\n"
          "  ssr on|off                              Set SSR output\n"
@@ -142,7 +233,10 @@ static void print_help(void) {
          "Acceleration: %d-%d steps/s^2 (default %d).\n"
          "Sending jog again before it ends extends it, so a client can run a\n"
          "motor continuously by repeating the command.\n"
-         "Axis 1 = T86S, axis 2 = NEMA17 driver.\n\n",
+         "Axis 1 = T86S, axis 2 = NEMA17 driver on the vertical guide:\n"
+         "f = up, r = down, limit 1 (A2) = top, limit 2 (A3) = bottom. A jog\n"
+         "stops at the limit in its direction; a sweep reverses there. k keeps\n"
+         "the sweep's current direction. Axis 1 ignores the limit switches.\n\n",
          MAX_JOG_DURATION_MS, MIN_STEP_RATE, MAX_STEP_RATE, DEFAULT_STEP_RATE,
          MIN_ACCEL, MAX_ACCEL, DEFAULT_ACCEL);
 }
@@ -159,11 +253,13 @@ static void print_status(void) {
          gpio_get_level(sensor_pins[1]) ? "HIGH" : "LOW",
          gpio_get_level(GPIO_NUM_2) ? "TRIPPED/HIGH" : "normal/LOW",
          gpio_get_level(GPIO_NUM_3) ? "TRIPPED/HIGH" : "normal/LOW");
-  printf("Motors: 1=%s  2=%s | SSR=%s | Rate: 1=%lu 2=%lu | Dir: 1=%c 2=%c\n",
+  printf("Motors: 1=%s  2=%s | SSR=%s | Rate: 1=%lu 2=%lu | Dir: 1=%c 2=%c | "
+         "Axis2: %s\n",
          motors[0].running ? "running" : "stopped",
          motors[1].running ? "running" : "stopped", ssr_on ? "ON" : "OFF",
          (unsigned long)motors[0].step_rate, (unsigned long)motors[1].step_rate,
-         motors[0].direction ? 'f' : 'r', motors[1].direction ? 'f' : 'r');
+         motors[0].direction ? 'f' : 'r', motors[1].direction ? 'f' : 'r',
+         motors[1].sweep ? "sweep" : "jog");
   xSemaphoreGive(control_mutex);
 }
 
@@ -194,7 +290,8 @@ static void handle_command(char *line) {
     return;
   }
 
-  if (strcmp(command, "jog") == 0) {
+  const bool is_sweep = strcmp(command, "sweep") == 0;
+  if (strcmp(command, "jog") == 0 || is_sweep) {
     char *axis_text = strtok_r(NULL, " \t\r\n", &save);
     char *direction_text = strtok_r(NULL, " \t\r\n", &save);
     char *duration_text = strtok_r(NULL, " \t\r\n", &save);
@@ -206,25 +303,79 @@ static void handle_command(char *line) {
         !parse_integer(duration_text, 1, MAX_JOG_DURATION_MS, &duration) ||
         (speed_text != NULL &&
          !parse_integer(speed_text, MIN_STEP_RATE, MAX_STEP_RATE, &speed)) ||
-        (strcmp(direction_text, "f") != 0 && strcmp(direction_text, "r") != 0)) {
-      printf("Invalid jog command. Example: jog 1 f 500 100\n");
+        (strcmp(direction_text, "f") != 0 && strcmp(direction_text, "r") != 0 &&
+         !(is_sweep && strcmp(direction_text, "k") == 0))) {
+      printf("Invalid %s command. Example: %s\n", command,
+             is_sweep ? "sweep 2 f 1500 800" : "jog 1 f 500 100");
       return;
     }
 
     motor_t *motor = &motors[axis - 1];
+    if (is_sweep && !motor->guarded) {
+      printf("Invalid sweep command: axis %ld has no limit switches.\n", axis);
+      return;
+    }
     if (xSemaphoreTake(control_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
       printf("Jog rejected: controller busy.\n");
       return;
     }
+    int dir = direction_text[0] == 'f' ? 1 : direction_text[0] == 'r' ? 0 : -1;
+    if (motor->guarded) {
+      const bool up = limit_hit(0), down = limit_hit(1);
+      if (up && down) {
+        xSemaphoreGive(control_mutex);
+        printf("Axis %ld not started: both limit switches are tripped.\n", axis);
+        return;
+      }
+      int d = dir >= 0 ? dir : (motor->running ? motor->target_direction : motor->direction);
+      if (d ? up : down) {
+        if (!is_sweep) {
+          const bool note = !motor->block_noted;
+          motor->block_noted = true;
+          xSemaphoreGive(control_mutex);
+          if (note) {
+            printf("Axis %ld blocked: the %s limit switch is tripped. Move the other way.\n",
+                   axis, d ? "up" : "down");
+          }
+          return;
+        }
+        d = !d;  // a sweep that starts on a switch backs away from it
+      }
+      motor->block_noted = false;
+      dir = d;
+    }
     const bool was_running = motor->running;
-    const bool changed = start_motor(motor, strcmp(direction_text, "f") == 0,
-                                     (uint32_t)speed, (uint32_t)duration);
+    const bool changed =
+        start_motor(motor, dir, (uint32_t)speed, (uint32_t)duration, is_sweep);
+    const int shown = motor->target_direction;
     xSemaphoreGive(control_mutex);
     if (changed) {
-      printf("Axis %ld jog %s: %s at %ld steps/s for %ld ms.\n", axis,
-             was_running ? "updated" : "started", direction_text, speed,
-             duration);
+      printf("Axis %ld jog %s: %c at %ld steps/s for %ld ms%s.\n", axis,
+             was_running ? "updated" : "started", shown ? 'f' : 'r', speed,
+             duration, is_sweep ? " (sweep between limits)" : "");
     }
+    return;
+  }
+
+  if (strcmp(command, "limit") == 0) {
+    char *which_text = strtok_r(NULL, " \t\r\n", &save);
+    char *level_text = strtok_r(NULL, " \t\r\n", &save);
+    char *extra = strtok_r(NULL, " \t\r\n", &save);
+    long which;
+    if (which_text == NULL || level_text == NULL || extra != NULL ||
+        !parse_integer(which_text, 1, 2, &which) ||
+        (strcmp(level_text, "low") != 0 && strcmp(level_text, "high") != 0)) {
+      printf("Usage: limit <1|2> <low|high>\n");
+      return;
+    }
+    if (xSemaphoreTake(control_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+      printf("Limit setting rejected: controller busy.\n");
+      return;
+    }
+    limit_active_level[which - 1] = strcmp(level_text, "high") == 0;
+    limit_count[which - 1] = 0;
+    xSemaphoreGive(control_mutex);
+    printf("Limit %ld is tripped when %s.\n", which, level_text);
     return;
   }
 
@@ -368,15 +519,20 @@ static void safety_task(void *arg) {
   while (true) {
     if (xSemaphoreTake(control_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
       const int64_t now_us = esp_timer_get_time();
+      sample_limits();
       for (size_t i = 0; i < sizeof(motors) / sizeof(motors[0]); ++i) {
         if (!motors[i].running) {
+          motors[i].last_dir = -1;
           continue;
         }
         if (now_us >= motors[i].stop_at_us) {
           stop_motor(&motors[i]);
           printf("%s jog complete.\n", motors[i].name);
         } else {
-          update_motor(&motors[i], now_us - last_us);
+          guard_motor(&motors[i]);
+          if (motors[i].running) {
+            update_motor(&motors[i], now_us - last_us);
+          }
         }
       }
       last_us = now_us;
