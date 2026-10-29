@@ -268,14 +268,175 @@
   footer { color: var(--muted); font-size: 12px; margin-top: 12px; }
   kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; background: var(--surface); }
 </style>
+<style id="hud">
+  /* ===== JARVIS HUD skin: overrides the theme tokens above ===== */
+  :root:root:root {
+    --bg: #010710; --surface: rgba(5, 22, 36, .78); --surface-2: rgba(8, 36, 54, .72); --inset: rgba(0, 10, 18, .85);
+    --border: rgba(0, 229, 255, .30); --text: #d6f7ff; --muted: #6fb6c8; --faint: #4a8496;
+    --accent: #00e5ff; --accent-soft: rgba(0, 229, 255, .12);
+    --ok: #36ffa0; --ok-soft: rgba(54, 255, 160, .12);
+    --warn: #ffb21f; --warn-soft: rgba(255, 178, 31, .12);
+    --danger: #ff3b52; --danger-soft: rgba(255, 59, 82, .13); --danger-strong: #d81f3a;
+    --lamp-off: #1d4252; --on-strong: #01141c; --shadow: none;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --hud: "Eurostile", "Bank Gothic", "Orbitron", "Rajdhani", "Avenir Next Condensed", ui-sans-serif, system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  body {
+    background:
+      radial-gradient(1200px 700px at 50% -10%, rgba(0, 120, 160, .35), transparent 60%),
+      radial-gradient(900px 600px at 100% 100%, rgba(255, 140, 0, .08), transparent 60%),
+      var(--bg);
+    background-attachment: fixed; font-family: var(--hud); letter-spacing: .02em;
+  }
+  body::before { /* blueprint grid */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(rgba(0,229,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.06) 1px, transparent 1px);
+    background-size: 44px 44px; mask-image: radial-gradient(ellipse at 50% 30%, #000 30%, transparent 85%);
+  }
+  body::after { /* scanlines */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.18) 2px 3px); mix-blend-mode: multiply;
+  }
+  .wrap { position: relative; z-index: 1; }
+
+  header { padding-bottom: 12px; border-bottom: 1px solid var(--border); position: relative; }
+  header::after { content: ""; position: absolute; left: 0; bottom: -1px; width: 140px; height: 2px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .mark { background: none; width: 52px; height: 52px; border-radius: 0; }
+  .mark svg { width: 52px; height: 52px; overflow: visible; }
+  .reactor .ring1 { animation: spin 18s linear infinite; transform-origin: 50% 50%; }
+  .reactor .ring2 { animation: spin 9s linear infinite reverse; transform-origin: 50% 50%; }
+  .reactor .core { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 50% { opacity: .55; } }
+  header h1 { font-size: 20px; letter-spacing: .28em; text-transform: uppercase; text-shadow: 0 0 14px rgba(0,229,255,.6); font-weight: 600; }
+  header .sub { font-family: var(--mono); letter-spacing: .12em; text-transform: uppercase; font-size: 11px; color: var(--faint); }
+  .chip { background: transparent; border-radius: 0; text-transform: uppercase; letter-spacing: .16em; font-size: 11.5px;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); padding: 7px 18px; }
+  .chip.on { color: var(--ok); border-color: var(--ok); box-shadow: 0 0 12px rgba(54,255,160,.3); }
+  .chip.on .dot { box-shadow: 0 0 10px var(--ok); }
+
+  button {
+    border-radius: 0; background: rgba(0, 229, 255, .06); border: 1px solid var(--border); color: var(--text);
+    text-transform: uppercase; letter-spacing: .12em; font-size: 12.5px; font-family: var(--hud);
+    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  }
+  button:hover:not(:disabled) { background: rgba(0, 229, 255, .17); border-color: var(--accent); box-shadow: 0 0 14px rgba(0,229,255,.35) inset; }
+  button.primary { background: rgba(0, 229, 255, .22); border-color: var(--accent); color: #eaffff; text-shadow: 0 0 8px var(--accent); }
+  button.primary:hover:not(:disabled) { background: rgba(0, 229, 255, .38); }
+  .estop { background: rgba(255,59,82,.18); border-color: var(--danger); color: #ffd7dc; letter-spacing: .3em;
+    box-shadow: 0 0 22px rgba(255,59,82,.18) inset;
+    background-image: repeating-linear-gradient(135deg, rgba(255,59,82,.0) 0 14px, rgba(255,59,82,.10) 14px 28px); }
+  .estop:hover:not(:disabled) { background: rgba(255,59,82,.32) !important; }
+  .estop kbd { color: #ffd7dc; border-color: rgba(255,120,130,.6); }
+
+  .card { position: relative; border-radius: 0; backdrop-filter: blur(6px);
+    background:
+      linear-gradient(var(--accent), var(--accent)) top left / 16px 2px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) top left / 2px 16px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) top right / 16px 2px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) top right / 2px 16px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) bottom left / 16px 2px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) bottom left / 2px 16px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) bottom right / 16px 2px no-repeat,
+      linear-gradient(var(--accent), var(--accent)) bottom right / 2px 16px no-repeat,
+      linear-gradient(180deg, rgba(0,229,255,.05), transparent 40%), var(--surface);
+    box-shadow: 0 0 0 1px rgba(0,229,255,.06) inset, 0 0 28px rgba(0,160,200,.10); }
+  .label { color: var(--accent); letter-spacing: .22em; font-size: 11px; text-shadow: 0 0 8px rgba(0,229,255,.5); }
+  .label::before { content: "▌"; margin-right: 6px; opacity: .8; }
+  .hint, .axis-sub { font-family: var(--mono); letter-spacing: .05em; }
+  .axis-title { font-weight: 600; letter-spacing: .16em; text-transform: uppercase; font-size: 16px; text-shadow: 0 0 10px rgba(0,229,255,.45); }
+  .badge { border-radius: 0; font-family: var(--mono); letter-spacing: .12em; background: transparent; }
+  .badge.run { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok); box-shadow: 0 0 12px rgba(54,255,160,.25); }
+
+  .tile { border-radius: 0; background: rgba(0, 20, 32, .6); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); }
+  .tile .name { letter-spacing: .1em; text-transform: uppercase; font-size: 12.5px; }
+  .tile .value { text-shadow: 0 0 14px currentColor; letter-spacing: .12em; }
+  .tile.false { background: linear-gradient(135deg, rgba(255,59,82,.20), rgba(255,59,82,.05)); border-color: var(--danger); }
+  .tile.true  { background: linear-gradient(135deg, rgba(54,255,160,.22), rgba(54,255,160,.05)); border-color: var(--ok); }
+  .tile.false .lamp { box-shadow: 0 0 10px var(--danger); }
+  .tile.true .lamp { box-shadow: 0 0 14px var(--ok), 0 0 0 4px rgba(54,255,160,.18); }
+  .tile .meta select, .settings-grid select, .numbox, .cmd input { border-radius: 0; background: rgba(0,10,18,.8); color: var(--text); }
+  .readout { border-radius: 0; background: rgba(0, 8, 14, .75); border-left: 3px solid var(--accent); }
+  .readout .big { text-shadow: 0 0 16px rgba(0,229,255,.55); }
+  .readout.live { border-left-color: var(--ok); box-shadow: 0 0 22px rgba(54,255,160,.12) inset; }
+  .readout.live .big { text-shadow: 0 0 18px rgba(54,255,160,.7); }
+  .seg { border-radius: 0; }
+  .seg button { clip-path: none; }
+  .seg button[aria-pressed="true"] { background: rgba(0,229,255,.32); color: #eaffff; text-shadow: 0 0 8px var(--accent); }
+  .runbtn.running { background: rgba(255,59,82,.28); border-color: var(--danger); color: #ffe0e4; }
+  .jog button.active { background: rgba(255,178,31,.3); border-color: var(--warn); color: #fff0d0; }
+  input[type=range] { accent-color: var(--accent); filter: drop-shadow(0 0 4px var(--accent)); }
+  .relay-state { text-shadow: 0 0 16px currentColor; letter-spacing: .15em; }
+  .relay-state.on { color: var(--warn); }
+  .relay .seg button.sel-on { background: rgba(255,178,31,.35); color: #fff0d0; }
+  .relay .seg button.sel-off { background: rgba(0,229,255,.18); color: var(--text); }
+  .log, .cmd input { border-radius: 0; border-color: var(--border); }
+  .log { background: rgba(0, 8, 14, .85); }
+  .banner, .notice { border-radius: 0; border-left: 3px solid currentColor; }
+  footer { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; }
+  kbd { border-radius: 0; background: transparent; }
+
+  /* ===== Holographic rig stage ===== */
+  .stage { margin-bottom: 14px; padding: 12px 12px 6px; }
+  .stage svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .stage .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 6px 8px; font: 11px var(--mono); color: var(--faint); letter-spacing: .06em; }
+  .stage .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+  .stage text { font-family: var(--mono); fill: var(--muted); font-size: 10px; letter-spacing: .14em; }
+  .stage .big-t { font-size: 12px; fill: var(--accent); letter-spacing: .26em; }
+  .stage .st-t { font-size: 12px; font-weight: 700; letter-spacing: .16em; }
+  .wf   { fill: none; stroke: var(--accent); stroke-width: 1.2; opacity: .8; vector-effect: non-scaling-stroke; }
+  .wf.f { opacity: .35; }
+  .wf.k { stroke-width: 1.8; opacity: 1; }
+  .fl   { fill: rgba(0, 229, 255, .06); stroke: var(--accent); stroke-width: 1.2; opacity: .85; vector-effect: non-scaling-stroke; }
+  .dim  { fill: none; stroke: var(--faint); stroke-width: 1; stroke-dasharray: 3 4; opacity: .6; }
+  .motor .halo { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0; transition: opacity .3s; filter: blur(3px); }
+  .motor.run .halo { opacity: .9; }
+  .motor.run .wf, .motor.run .fl { stroke: #7df4ff; opacity: 1; }
+  .motor.run { filter: drop-shadow(0 0 5px rgba(0,229,255,.7)); }
+  .motor.run.rev .wf, .motor.run.rev .fl { stroke: #ffc766; }
+  .motor.run.rev { filter: drop-shadow(0 0 5px rgba(255,178,31,.7)); }
+  .motor .dot-ind { fill: var(--accent); }
+  .motor.rev .dot-ind { fill: var(--warn); }
+  .trace { fill: none; stroke: var(--faint); stroke-width: 1.6; opacity: .55; stroke-dasharray: 5 7; vector-effect: non-scaling-stroke; transition: stroke .2s, opacity .2s; }
+  .trace.run { stroke: var(--accent); opacity: 1; animation: flow var(--flow, 1s) linear infinite; filter: drop-shadow(0 0 3px var(--accent)); }
+  .trace.run.rev { stroke: var(--warn); animation-direction: reverse; filter: drop-shadow(0 0 3px var(--warn)); }
+  .trace.t-true { stroke: var(--ok); opacity: 1; filter: drop-shadow(0 0 3px var(--ok)); animation: flow 1.2s linear infinite; }
+  .trace.t-false { stroke: var(--danger); opacity: .7; }
+  .trace.t-on { stroke: var(--warn); opacity: 1; filter: drop-shadow(0 0 3px var(--warn)); animation: flow .8s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  .led { fill: var(--lamp-off); stroke: var(--accent); stroke-width: 1; }
+  .led.g { fill: var(--ok); filter: drop-shadow(0 0 5px var(--ok)); }
+  .led.r { fill: var(--danger); filter: drop-shadow(0 0 5px var(--danger)); }
+  .led.a { fill: var(--warn); filter: drop-shadow(0 0 5px var(--warn)); }
+  .dev .stat { fill: var(--faint); }
+  .dev.s-true .stat { fill: var(--ok); } .dev.s-false .stat { fill: var(--danger); }
+  .dev.s-true .wf, .dev.s-true .fl { stroke: var(--ok); } .dev.s-false .wf, .dev.s-false .fl { stroke: var(--danger); opacity: .75; }
+  .dev.s-true { filter: drop-shadow(0 0 5px rgba(54,255,160,.55)); }
+  .beam { stroke: var(--danger); stroke-width: 2; stroke-dasharray: 4 5; opacity: .6; }
+  .dev.s-true .beam { stroke: var(--ok); opacity: 1; animation: flow .6s linear infinite; }
+  .ssr-on .wf, .ssr-on .fl { stroke: var(--warn); opacity: 1; }
+  .ssr-on { filter: drop-shadow(0 0 6px rgba(255,178,31,.7)); }
+  .sweep { transform-origin: 550px 150px; animation: spin 6s linear infinite; opacity: .5; }
+  .conn-off { opacity: .55; }
+  @media (prefers-reduced-motion: reduce) {
+    .reactor .ring1, .reactor .ring2, .reactor .core, .trace, .sweep, .beam { animation: none !important; }
+  }
+  @media (max-width: 640px) { header h1 { font-size: 15px; letter-spacing: .16em; } }
+</style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand">
-      <div class="mark">R</div>
+      <div class="mark"><svg class="reactor" viewBox="0 0 52 52" aria-hidden="true">
+          <circle cx="26" cy="26" r="24" fill="none" stroke="#00e5ff" stroke-width="1" opacity=".5"/>
+          <g class="ring1"><circle cx="26" cy="26" r="20" fill="none" stroke="#00e5ff" stroke-width="2" stroke-dasharray="6 4"/></g>
+          <g class="ring2"><circle cx="26" cy="26" r="14" fill="none" stroke="#7df4ff" stroke-width="1.5" stroke-dasharray="3 5"/></g>
+          <polygon class="core" points="26,16 34.7,21 34.7,31 26,36 17.3,31 17.3,21" fill="#baffff" stroke="#00e5ff" stroke-width="1.5"/>
+        </svg></div>
       <div>
-        <h1>Reenvo Control Panel</h1>
+        <h1>Reenvo // Control Core</h1>
         <div class="sub">Glyph C6 · wired USB serial · 115200 baud</div>
       </div>
     </div>
@@ -290,6 +451,19 @@
   <div class="notice" id="notice" role="status" aria-live="polite"></div>
 
   <button class="estop" id="estop" disabled>STOP ALL MOTORS<kbd>Esc</kbd></button>
+
+  <!-- Holographic rig -->
+  <section class="card stage" aria-label="Live rig schematic">
+    <div class="row-head"><span class="label">Holographic rig · live</span><span class="hint" id="rigNote">Offline — connect the board</span></div>
+    <div id="rig"></div>
+    <div class="legend">
+      <span><i style="color:var(--accent)"></i>forward / signal</span>
+      <span><i style="color:var(--warn)"></i>reverse / SSR on</span>
+      <span><i style="color:var(--ok)"></i>input TRUE</span>
+      <span><i style="color:var(--danger)"></i>input FALSE</span>
+      <span>rotor speed is real up to 1.5 rev/s, compressed above so it stays readable</span>
+    </div>
+  </section>
 
   <!-- Sensors -->
   <section class="card sensors">
@@ -464,6 +638,9 @@
     const { rate, ppr, accel, dir, ms } = st.axis[id];
     store.set('axis' + id, { rate, ppr, accel, dir, ms });
   };
+
+  // Filled in by the holographic rig below.
+  const hud = { axis() {}, input() {}, ssr() {} };
 
   const clampRate = r => Math.min(MAX_RATE, Math.max(MIN_RATE, Math.round(r)));
   const toRpm = (rate, ppr) => rate * 60 / ppr;
@@ -673,6 +850,7 @@
   function renderInput(pin) {
     const tile = $('#tile-' + pin);
     const t = triggered(pin);
+    hud.input(pin, t);
     tile.classList.toggle('true', t === true);
     tile.classList.toggle('false', t === false);
     $('.value', tile).textContent = t === null ? '—' : (t ? 'TRUE' : 'FALSE');
@@ -861,6 +1039,8 @@
     $('[data-timed]', card).disabled = !connected || !!ax.mode;
     $('[data-stop]', card).disabled = !connected;
 
+    hud.axis(id);
+
     // Settings hint
     const minRpm = toRpm(MIN_RATE, ax.ppr), maxRpm = toRpm(MAX_RATE, ax.ppr);
     $('[data-settings-hint]', card).textContent =
@@ -897,6 +1077,7 @@
   // ---------- Relay ----------
   function setSsr(on) {
     st.ssr = on;
+    hud.ssr(on);
     const el = $('#ssrState');
     el.textContent = on ? 'ON' : 'OFF';
     el.className = 'relay-state ' + (on ? 'on' : 'off');
@@ -920,7 +1101,7 @@
       stopAllModes(false);
       for (const p of ['A0', 'A1', 'A2', 'A3']) { st.raw[p] = null; st.changedAt[p] = null; renderInput(p); }
       for (const a of AXES) { st.axis[a.id].running = false; st.axis[a.id].liveRate = 0; }
-      st.ssr = null;
+      st.ssr = null; hud.ssr(null);
       $('#ssrState').textContent = '—'; $('#ssrState').className = 'relay-state';
       $('#ssrOn').classList.remove('sel-on'); $('#ssrOff').classList.remove('sel-off');
       $('#lastUpdate').textContent = 'No data yet';
@@ -960,6 +1141,234 @@
 
   // Exposed for testing the parser without hardware.
   window.reenvo = { handleLine, state: st, setConnected, renderAxis };
+  // ---------- Holographic rig (wireframe schematic driven by live board data) ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const rigEl = $('#rig');
+  const f1 = n => n.toFixed(1);
+
+  function motorEnd(id, cx, cy, s) {
+    return `
+    <g class="motor" id="m${id}">
+      <circle class="halo" cx="${cx}" cy="${cy}" r="${s * 0.52}"/>
+      <rect class="fl" x="${cx - s}" y="${cy - s}" width="${2 * s}" height="${2 * s}" rx="${s * 0.08}"/>
+      <circle class="wf f" cx="${cx}" cy="${cy}" r="${s * 0.93}"/>
+      ${[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, y]) => `<circle class="wf" cx="${f1(cx + x * s * 0.78)}" cy="${f1(cy + y * s * 0.78)}" r="${f1(s * 0.07)}"/><path class="wf f" d="M${f1(cx + x * s * 0.78 - s * 0.05)} ${f1(cy + y * s * 0.78)}h${f1(s * 0.1)}M${f1(cx + x * s * 0.78)} ${f1(cy + y * s * 0.78 - s * 0.05)}v${f1(s * 0.1)}"/>`).join('')}
+      <circle class="wf" cx="${cx}" cy="${cy}" r="${s * 0.5}"/>
+      <path class="dim" d="M${cx - s - 10} ${cy}H${cx + s + 10}M${cx} ${cy - s - 10}V${cy + s + 10}"/>
+      <g id="rot${id}" transform="translate(${cx} ${cy})">
+        <circle class="wf k" r="${f1(s * 0.40)}"/>
+        ${Array.from({ length: 8 }, (_, i) => { const a = i * Math.PI / 4, c = Math.cos(a), sn = Math.sin(a); return `<path class="wf" d="M${f1(c * s * 0.16)} ${f1(sn * s * 0.16)}L${f1(c * s * 0.40)} ${f1(sn * s * 0.40)}"/>`; }).join('')}
+        <circle class="wf k" r="${f1(s * 0.14)}"/>
+        <path class="wf k" d="M${f1(-s * 0.05)} ${f1(-s * 0.14)}v${f1(-s * 0.06)}h${f1(s * 0.1)}v${f1(s * 0.06)}"/>
+        <circle class="dot-ind" cx="0" cy="${f1(-s * 0.31)}" r="${f1(s * 0.05)}"/>
+      </g>
+    </g>`;
+  }
+
+  function motorSide(id, yc, bh, shr, mirror) {
+    const x0 = 30, bt = yc - bh / 2;
+    const fins = Array.from({ length: 8 }, (_, i) => `<path class="wf f" d="M${x0 + 32 + i * 11} ${bt + 4}v${bh - 8}"/>`).join('');
+    const g = `
+      <rect class="fl" x="${x0}" y="${yc - bh * 0.32}" width="26" height="${bh * 0.64}" rx="4"/>
+      ${mirror ? '' : `<text transform="translate(${x0 + 13} ${yc}) rotate(-90)" text-anchor="middle" style="font-size:8px">ENCODER</text>`}
+      <rect class="fl" x="${x0 + 26}" y="${bt}" width="92" height="${bh}" rx="3"/>${fins}
+      <rect class="fl" x="${x0 + 118}" y="${bt - 7}" width="12" height="${bh + 14}" rx="2"/>
+      <rect class="wf" x="${x0 + 130}" y="${yc - bh * 0.28}" width="9" height="${bh * 0.56}"/>
+      <rect class="fl" x="${x0 + 139}" y="${yc - shr}" width="52" height="${2 * shr}"/>
+      <path class="wf f" d="M${x0 + 139} ${yc}H${x0 + 191}" style="stroke-dasharray:2 5"/>
+      <path class="wf k" id="key${id}" d="M${x0 + 143} ${yc}H${x0 + 188}"/>`;
+    return `<g class="motor" id="ms${id}" ${mirror ? 'transform="translate(1100 0) scale(-1 1)"' : ''}>${g}</g>`;
+  }
+
+  function driver(id, x, label, sub, dip) {
+    const w = 170, h = 110;
+    const toggles = dip ? dip.map((on, i) => `<rect class="wf" x="${x + 14 + i * 17}" y="${40 + 56}" width="11" height="22"/><rect class="fl" x="${x + 15 + i * 17}" y="${on ? 97 : 107}" width="9" height="10"/>`).join('') : '';
+    const terms = Array.from({ length: 6 }, (_, i) => `<rect class="wf" x="${x + 14 + i * 14}" y="${40 + h - 14}" width="10" height="14"/>`).join('');
+    return `
+    <g class="dev drv" id="drv${id}">
+      <rect class="fl" x="${x}" y="40" width="${w}" height="${h}" rx="4"/>
+      <text class="big-t" x="${x + 14}" y="62">${label}</text>
+      <text x="${x + 14}" y="76" style="font-size:8.5px">${sub}</text>
+      <circle class="led" id="ledP${id}" cx="${x + w - 40}" cy="58" r="5"/><text x="${x + w - 32}" y="61" style="font-size:8px">PWR</text>
+      <circle class="led" id="ledS${id}" cx="${x + w - 40}" cy="76" r="5"/><text x="${x + w - 32}" y="79" style="font-size:8px">PUL</text>
+      ${dip ? toggles + `<text x="${x + 14}" y="93" style="font-size:8px">SW1–8 (SET: 1600 PPR · CLOSED LOOP)</text>` : terms}
+    </g>`;
+  }
+
+  function irItem(pin, cx, name) {
+    return `
+    <g class="dev" id="dev-${pin}">
+      <rect class="fl" x="${cx - 64}" y="445" width="24" height="60" rx="3"/><circle class="wf" cx="${cx - 52}" cy="475" r="7"/><circle class="wf f" cx="${cx - 52}" cy="475" r="3"/>
+      <rect class="fl" x="${cx + 40}" y="445" width="24" height="60" rx="3"/><circle class="wf" cx="${cx + 52}" cy="475" r="7"/><circle class="wf f" cx="${cx + 52}" cy="475" r="3"/>
+      <path class="beam" d="M${cx - 42} 475H${cx + 42}"/>
+      <path class="wf f" d="M${cx - 64} 505v12h128v-12"/>
+      <text x="${cx}" y="534" text-anchor="middle">${name} · ${pin}</text>
+      <text class="st-t stat" id="st-${pin}" x="${cx}" y="554" text-anchor="middle">—</text>
+    </g>`;
+  }
+
+  function limitItem(pin, cx, name) {
+    return `
+    <g class="dev" id="dev-${pin}">
+      <rect class="fl" x="${cx - 44}" y="458" width="84" height="46" rx="4"/>
+      <circle class="wf" cx="${cx - 30}" cy="470" r="3"/><circle class="wf" cx="${cx + 26}" cy="470" r="3"/>
+      <g id="lev-${pin}" style="transform-origin:${cx - 34}px 458px; transition: transform .18s ease-out; transform: rotate(-22deg)">
+        <path class="wf k" d="M${cx - 34} 458L${cx + 34} 458"/><circle class="wf k" cx="${cx + 34}" cy="452" r="6"/>
+      </g>
+      <circle class="wf" cx="${cx - 34}" cy="458" r="3"/>
+      <text x="${cx - 36}" y="494" style="font-size:7.5px">COM</text><text x="${cx + 10}" y="494" style="font-size:7.5px">NO</text>
+      <path class="wf f" d="M${cx - 44} 504v13h84v-13"/>
+      <text x="${cx}" y="534" text-anchor="middle">${name} · ${pin}</text>
+      <text class="st-t stat" id="st-${pin}" x="${cx}" y="554" text-anchor="middle">—</text>
+    </g>`;
+  }
+
+  function ssrItem(cx) {
+    return `
+    <g id="ssrDev">
+      <rect class="fl" x="${cx - 66}" y="440" width="132" height="76" rx="4"/>
+      <circle class="led" id="ledSsr" cx="${cx - 48}" cy="458" r="5"/>
+      <path class="wf" d="M${cx - 44} 480h22l-11-16z M${cx - 22} 480h-22"/>
+      <path class="wf f" d="M${cx - 14} 466l8 -6m-3 -1l3 -1l-1 3m3 8l8 -6m-3 -1l3 -1l-1 3"/>
+      <circle class="wf" cx="${cx + 18}" cy="490" r="4"/><circle class="wf" cx="${cx + 52}" cy="490" r="4"/>
+      <g id="ssrBar" style="transform-origin:${cx + 22}px 490px; transition: transform .18s ease-out; transform: rotate(-28deg)">
+        <path class="wf k" d="M${cx + 22} 490H${cx + 50}"/>
+      </g>
+      <text x="${cx + 8}" y="476" style="font-size:8px">LOAD · 3–32V CTRL</text>
+      <path class="wf f" d="M${cx - 66} 516v0"/>
+      <text x="${cx}" y="534" text-anchor="middle">SSR 1 · D18</text>
+      <text class="st-t" id="st-ssr" x="${cx}" y="554" text-anchor="middle" style="fill:var(--faint)">—</text>
+    </g>`;
+  }
+
+  const pinsX = { A0: 470, A1: 510, D18: 550, A2: 590, A3: 630 };
+  const itemX = { A0: 150, A1: 340, D18: 550, A2: 760, A3: 950 };
+  const hY = { A0: 300, A1: 330, A2: 330, A3: 300 };
+  const sensorTrace = pin => pin === 'D18'
+    ? `<path class="trace" id="tr-D18" d="M550 250V420"/>`
+    : `<path class="trace" id="tr-${pin}" d="M${pinsX[pin]} 250V${hY[pin]}H${itemX[pin]}V420"/>`;
+
+  rigEl.innerHTML = `
+  <svg viewBox="0 0 1100 580" id="rigSvg" role="img" aria-label="Live schematic of the board, drivers, motors, relay, sensors and limit switches">
+    <!-- traces under everything -->
+    <path class="trace" id="trS1" d="M440 108H330V98H200"/><path class="trace" id="trD1" d="M440 134H350V124H200"/>
+    <path class="trace" id="trS2" d="M660 108H770V98H900"/><path class="trace" id="trD2" d="M660 134H750V124H900"/>
+    <path class="trace" id="trM1" d="M115 150V262"/><path class="trace" id="trM2" d="M985 150V262"/>
+    ${['A0', 'A1', 'D18', 'A2', 'A3'].map(sensorTrace).join('')}
+
+    <!-- Glyph C6 -->
+    <g id="board">
+      <rect class="fl" x="440" y="70" width="220" height="180" rx="6"/>
+      <path class="wf f" d="M452 82h196v156H452z"/>
+      <rect class="fl" x="520" y="50" width="60" height="26" rx="3"/><text x="550" y="43" text-anchor="middle" style="font-size:8.5px">USB-C · JTAG/SERIAL</text>
+      <rect class="fl" x="518" y="108" width="64" height="64" rx="3"/>
+      ${Array.from({ length: 8 }, (_, i) => `<path class="wf" d="M${526 + i * 7.5} 108v-6M${526 + i * 7.5} 172v6M518 ${116 + i * 7.5}h-6M582 ${116 + i * 7.5}h6"/>`).join('')}
+      <text x="550" y="136" text-anchor="middle" style="fill:var(--accent);font-size:9px">ESP32-C6</text>
+      <text x="550" y="150" text-anchor="middle" style="font-size:8px">RISC-V · 160 MHz</text>
+      <circle class="wf f sweep" style="transform-origin:550px 140px" cx="550" cy="140" r="52" stroke-dasharray="14 10"/>
+      <text class="big-t" x="550" y="214" text-anchor="middle">GLYPH C6</text>
+      <text x="550" y="228" text-anchor="middle" style="font-size:8.5px">PCB CUPID</text>
+      <text x="446" y="106" style="font-size:8px">D6</text><text x="446" y="132" style="font-size:8px">D7</text>
+      <text x="654" y="106" text-anchor="end" style="font-size:8px">D14</text><text x="654" y="132" text-anchor="end" style="font-size:8px">D19</text>
+      ${Object.entries(pinsX).map(([p, x]) => `<circle class="wf" cx="${x}" cy="250" r="3.5"/><text x="${x}" y="240" text-anchor="middle" style="font-size:7.5px">${p}</text>`).join('')}
+      <circle class="led" id="ledUsb" cx="468" cy="88" r="4"/><text x="476" y="91" style="font-size:7.5px">LINK</text>
+    </g>
+
+    ${driver(1, 30, 'T86S', 'CLOSED-LOOP DRIVER', [1, 0, 1, 1, 1, 0, 0, 0])}
+    ${driver(2, 900, 'NEMA17 DRV', 'STEP / DIR DRIVER', null)}
+    ${motorSide(1, 308, 100, 8, false)}${motorEnd(1, 330, 308, 80)}
+    ${motorSide(2, 308, 64, 5.5, true)}${motorEnd(2, 770, 308, 46)}
+    <text class="big-t" x="330" y="408" text-anchor="middle">AXIS 1 · NEMA34</text>
+    <text id="rd1" x="330" y="424" text-anchor="middle" style="fill:var(--text)">0.0 RPM · STOPPED</text>
+    <text class="big-t" x="770" y="408" text-anchor="middle">AXIS 2 · NEMA17</text>
+    <text id="rd2" x="770" y="424" text-anchor="middle" style="fill:var(--text)">0.0 RPM · STOPPED</text>
+
+    ${irItem('A0', 150, 'IR 1')}${irItem('A1', 340, 'IR 2')}
+    ${ssrItem(550)}
+    ${limitItem('A2', 760, 'LIMIT 1')}${limitItem('A3', 950, 'LIMIT 2')}
+  </svg>`;
+
+  const rigSvg = $('#rigSvg');
+  const byId = id => document.getElementById(id);
+  const tracesOf = id => id === 1 ? ['trS1', 'trD1', 'trM1'] : ['trS2', 'trD2', 'trM2'];
+  const spin = { 1: 0, 2: 0 };         // current rotor angle (deg)
+  const spinR = { 1: 8, 2: 4 };        // shaft radius (for the key line in the side view)
+  const spinXs = { 1: [30 + 143, 30 + 188], 2: [30 + 143, 30 + 188] };
+
+  hud.axis = function (id) {
+    const ax = st.axis[id];
+    const live = st.connected && ax.running;
+    const rev = ax.liveDir === 'r';
+    for (const el of [byId('m' + id), byId('ms' + id)]) { el.classList.toggle('run', live); el.classList.toggle('rev', rev); }
+    for (const t of tracesOf(id)) {
+      const el = byId(t);
+      el.classList.toggle('run', live); el.classList.toggle('rev', rev);
+      const dur = Math.min(1.4, Math.max(.15, 1.4 - 1.25 * Math.log(Math.max(ax.liveRate, 50) / 50) / Math.log(400)));
+      el.style.setProperty('--flow', dur.toFixed(2) + 's');
+    }
+    byId('ledS' + id).setAttribute('class', 'led' + (live ? ' a' : ''));
+    const rpm = live ? toRpm(ax.liveRate, ax.ppr) : 0;
+    byId('rd' + id).textContent = `${fmtRpm(rpm)} RPM · ${live ? (rev ? 'REVERSE ◀' : 'FORWARD ▶') : st.connected ? 'STOPPED' : 'OFFLINE'}`;
+  };
+
+  hud.input = function (pin, t) {
+    const dev = byId('dev-' + pin);
+    if (!dev) return;
+    dev.classList.toggle('s-true', t === true);
+    dev.classList.toggle('s-false', t === false);
+    const tx = byId('st-' + pin);
+    tx.textContent = t === null ? '—' : (t ? 'TRUE' : 'FALSE');
+    tx.setAttribute('style', t === null ? 'fill:var(--faint)' : '');
+    const tr = byId('tr-' + pin);
+    tr.classList.toggle('t-true', t === true);
+    tr.classList.toggle('t-false', t === false);
+    const lev = byId('lev-' + pin);
+    if (lev) lev.style.transform = t ? 'rotate(0deg)' : 'rotate(-22deg)';
+  };
+
+  hud.ssr = function (on) {
+    byId('ssrDev').classList.toggle('ssr-on', on === true);
+    byId('tr-D18').classList.toggle('t-on', on === true);
+    byId('ssrBar').style.transform = on ? 'rotate(0deg)' : 'rotate(-28deg)';
+    byId('ledSsr').setAttribute('class', 'led' + (on ? ' a' : ''));
+    const tx = byId('st-ssr');
+    tx.textContent = on === null ? '—' : (on ? 'ON · LOAD CLOSED' : 'OFF · LOAD OPEN');
+    tx.setAttribute('style', on === true ? 'fill:var(--warn)' : on === false ? 'fill:var(--text)' : 'fill:var(--faint)');
+  };
+
+  // Frame loop: spin the rotors at the board-reported speed (real up to 1.5 rev/s, compressed above).
+  let lastT = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+    const conn = st.connected;
+    rigSvg.classList.toggle('conn-off', !conn);
+    byId('ledUsb').setAttribute('class', 'led' + (conn ? ' g' : ''));
+    byId('ledP1').setAttribute('class', 'led' + (conn ? ' g' : ''));
+    byId('ledP2').setAttribute('class', 'led' + (conn ? ' g' : ''));
+    $('#rigNote').textContent = conn ? 'Online — values follow the board' : 'Offline — connect the board';
+    for (const a of AXES) {
+      const ax = st.axis[a.id];
+      const live = conn && ax.running;
+      const rps = live ? ax.liveRate / ax.ppr : 0;
+      let v = rps * 360;                                  // deg/s
+      if (v > 540) v = 540 + Math.min(360, (v - 540) * 0.08); // compress so it never aliases into a blur
+      spin[a.id] = (spin[a.id] + (ax.liveDir === 'r' ? -1 : 1) * v * dt) % 360;
+      const rad = spin[a.id] * Math.PI / 180;
+      const cx = a.id === 1 ? 330 : 770, s = a.id === 1 ? 80 : 46;
+      byId('rot' + a.id).setAttribute('transform', `translate(${cx} 308) rotate(${spin[a.id].toFixed(1)})`);
+      const key = byId('key' + a.id), ky = 308 + spinR[a.id] * 0.8 * Math.sin(rad);
+      key.setAttribute('d', `M${spinXs[a.id][0]} ${ky.toFixed(1)}H${spinXs[a.id][1]}`);
+      key.style.opacity = Math.cos(rad) > 0 ? 1 : 0.25;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // Apply the current state to the new drawings.
+  for (const a of AXES) renderAxis(a.id);
+  for (const p of ['A0', 'A1', 'A2', 'A3']) renderInput(p);
+  hud.ssr(st.ssr);
+
 })();
 </script>
 </body>
